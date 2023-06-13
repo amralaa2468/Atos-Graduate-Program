@@ -5,6 +5,8 @@ import HttpError from "../models/http-error.js";
 import Question from "../models/question.js";
 import { Answer } from "../models/answer.js";
 
+const publicKey = `-----BEGIN PUBLIC KEY-----\n${process.env.JWT_KEY}\n-----END PUBLIC KEY-----`;
+
 async function createQuestion(req, res, next) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -53,7 +55,9 @@ async function createQuestion(req, res, next) {
   });
 
   const token = req.headers.authorization.split(" ")[1];
-  const decodedToken = jwt.verify(token, process.env.JWT_KEY);
+  const decodedToken = jwt.verify(token, publicKey, {
+    algorithms: ["RS256"],
+  });
   const userType = decodedToken.userType;
 
   if (userType !== "teacher") {
@@ -129,7 +133,9 @@ async function getQuestionByID(req, res, next) {
 //----------------------------------------------------------
 async function getAllQuestions(req, res, next) {
   const token = req.headers.authorization.split(" ")[1];
-  let decodedToken = jwt.verify(token, process.env.JWT_KEY);
+  let decodedToken = jwt.verify(token, publicKey, {
+    algorithms: ["RS256"],
+  });
   let userType = decodedToken.userType;
 
   if (userType === "student") {
@@ -153,7 +159,11 @@ async function getAllQuestions(req, res, next) {
   let questions;
   try {
     totalQuestions = await Question.countDocuments(filter);
-    questions = await Question.find(filter).skip(skip).limit(limit);
+    questions = await Question.find(filter)
+      .skip(skip)
+      .limit(limit)
+      .populate("answers")
+      .populate("correctAnswers");
   } catch (err) {
     const error = new HttpError(
       "Fetching questions failed, please try again later.",
@@ -177,9 +187,11 @@ async function updateQuestionByID(req, res, next) {
   }
 
   const token = req.headers.authorization.split(" ")[1];
-  const decodedToken = jwt.verify(token, process.env.JWT_KEY);
+  const decodedToken = jwt.verify(token, publicKey, {
+    algorithms: ["RS256"],
+  });
 
-  const userID = decodedToken.userID;
+  const userID = decodedToken.sub;
   const userType = decodedToken.userType;
 
   const questionToUpdate = new Question(req.body);
@@ -236,7 +248,9 @@ async function updateQuestionByID(req, res, next) {
 //---------------------------------------------------------------
 async function deleteQuestionByID(req, res, next) {
   const token = req.headers.authorization.split(" ")[1];
-  const decodedToken = jwt.verify(token, process.env.JWT_KEY);
+  const decodedToken = jwt.verify(token, publicKey, {
+    algorithms: ["RS256"],
+  });
   const userType = decodedToken.userType;
   const questionID = req.params.questionID;
 

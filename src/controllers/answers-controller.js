@@ -5,6 +5,8 @@ import HttpError from "../models/http-error.js";
 import { Answer } from "../models/answer.js";
 import Question from "../models/question.js";
 
+const publicKey = `-----BEGIN PUBLIC KEY-----\n${process.env.JWT_KEY}\n-----END PUBLIC KEY-----`;
+
 async function addAnswerToExistingQuestion(req, res, next) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -14,9 +16,11 @@ async function addAnswerToExistingQuestion(req, res, next) {
   }
 
   const token = req.headers.authorization.split(" ")[1];
-  const decodedToken = jwt.verify(token, process.env.JWT_KEY);
+  const decodedToken = jwt.verify(token, publicKey, {
+    algorithms: ["RS256"],
+  });
 
-  const userID = decodedToken.userID;
+  const userID = decodedToken.sub;
   const questionID = req.body.questionID;
 
   const newAnswer = new Answer(req.body);
@@ -74,9 +78,9 @@ async function addAnswerToExistingQuestion(req, res, next) {
 //---------------------------------------------------------------
 async function deleteAnswerFromExistingQuestion(req, res, next) {
   const token = req.headers.authorization.split(" ")[1];
-  const decodedToken = jwt.verify(token, process.env.JWT_KEY);
+  const decodedToken = jwt.verify(token, publicKey);
 
-  const userID = decodedToken.userID;
+  const userID = decodedToken.sub;
   const questionID = req.params.questionID;
   const answerID = req.params.answerID;
 
