@@ -105,6 +105,7 @@ const CreateExamForm = () => {
       console.log(response.data); // Response from the server
       alert("Exam definition created successfully.");
       resetForm();
+      window.location.reload();
     } catch (error) {
       console.error(error);
     }
@@ -124,6 +125,14 @@ const CreateExamForm = () => {
       assignedTo: "",
     });
   };
+
+  if (questions.length === 0) {
+    return (
+      <div className="m-5">
+        <h2>Please create a question first.</h2>
+      </div>
+    );
+  }
 
   if (loading) {
     return <div>Loading...</div>;

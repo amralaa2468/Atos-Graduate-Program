@@ -9,6 +9,7 @@ const useAuth = () => {
     "access_token",
     "user_type",
     "user_ID",
+    "user_name",
   ]);
   const isRun = useRef(false);
   const client = useRef(null);
@@ -27,10 +28,12 @@ const useAuth = () => {
     client.current = new Keycloak(keycloakConfiguration);
 
     client.current.init({ onLoad: "login-required" }).then((authenticated) => {
+      console.log(client.current);
       setLogin(authenticated);
       setToken(client.current.token);
       setCookies("access_token", client.current.token);
       setCookies("user_type", client.current.tokenParsed.userType);
+      setCookies("user_name", client.current.tokenParsed.name);
       setCookies("user_ID", client.current.tokenParsed.sub);
     });
   }, []);

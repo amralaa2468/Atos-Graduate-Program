@@ -104,6 +104,7 @@ const CreateQuestionForm = () => {
       );
       alert("Question created successfully");
       resetForm();
+      window.location.reload();
     } catch (error) {
       alert(
         "There is a problem with creating the question. Please try again later."

@@ -11,6 +11,7 @@ import { StudentExams } from "./exam/pages/student-exams";
 import useAuth from "./user/hooks/useAuth";
 
 import "./App.css";
+import { Notifications } from "./notification/pages/notifications";
 
 function App() {
   const [isLogin, logout] = useAuth();
@@ -30,6 +31,7 @@ function App() {
               path="/student-exam/:examInstanceID"
               element={<StudentExam />}
             />
+            <Route path="/notifications" element={<Notifications />} />
           </Routes>
         </Router>
       </div>

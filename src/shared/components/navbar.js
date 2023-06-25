@@ -60,6 +60,11 @@ export const Navbar = ({ logout }) => {
               </Link>
             </li>
           )}
+          <li className="nav-item">
+            <Link className="nav-link" to={`/notifications`}>
+              Notifications
+            </Link>
+          </li>
         </ul>
         {cookies.access_token && (
           <button className="btn btn-secondary" onClick={handleLogout}>

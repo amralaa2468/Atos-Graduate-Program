@@ -49,6 +49,7 @@ const ExamList = () => {
         url: "http://localhost:3000/student-exams",
         scheduledTimeFrom,
         scheduledTimeTo,
+        notification: "You have been assigned an exam.",
       },
     };
 
@@ -68,46 +69,51 @@ const ExamList = () => {
 
   return (
     <div className="container mt-3">
-      {exams.map((exam) => (
-        <div className="card mb-3" key={exam.id}>
-          <div className="card-body">
-            <h5 className="card-title">{exam.name}</h5>
-            <div className="mb-3">
-              <label className="form-label">Duration (minutes):</label>
-              <input
-                type="number"
-                className="form-control"
-                value={duration}
-                onChange={(event) => setDuration(event.target.value)}
-              />
+      <h2 className="mt-4">Exams</h2>
+      {exams.length === 0 ? (
+        <p>You did not create any exams. Please create one.</p>
+      ) : (
+        exams.map((exam) => (
+          <div className="card mb-3" key={exam.id}>
+            <div className="card-body">
+              <h5 className="card-title">{exam.name}</h5>
+              <div className="mb-3">
+                <label className="form-label">Duration (minutes):</label>
+                <input
+                  type="number"
+                  className="form-control"
+                  value={duration}
+                  onChange={(event) => setDuration(event.target.value)}
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Scheduled Time From:</label>
+                <input
+                  type="datetime-local"
+                  className="form-control"
+                  value={scheduledTimeFrom}
+                  onChange={(event) => setScheduledTimeFrom(event.target.value)}
+                />
+              </div>
+              <div className="mb-3">
+                <label className="form-label">Scheduled Time To:</label>
+                <input
+                  type="datetime-local"
+                  className="form-control"
+                  value={scheduledTimeTo}
+                  onChange={(event) => setScheduledTimeTo(event.target.value)}
+                />
+              </div>
+              <button
+                className="btn btn-primary"
+                onClick={() => handlePublishExam(exam.id)}
+              >
+                Publish Exam
+              </button>
             </div>
-            <div className="mb-3">
-              <label className="form-label">Scheduled Time From:</label>
-              <input
-                type="datetime-local"
-                className="form-control"
-                value={scheduledTimeFrom}
-                onChange={(event) => setScheduledTimeFrom(event.target.value)}
-              />
-            </div>
-            <div className="mb-3">
-              <label className="form-label">Scheduled Time To:</label>
-              <input
-                type="datetime-local"
-                className="form-control"
-                value={scheduledTimeTo}
-                onChange={(event) => setScheduledTimeTo(event.target.value)}
-              />
-            </div>
-            <button
-              className="btn btn-primary"
-              onClick={() => handlePublishExam(exam.id)}
-            >
-              Publish Exam
-            </button>
           </div>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 };

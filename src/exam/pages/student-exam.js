@@ -19,9 +19,10 @@ export const StudentExam = () => {
   const [examDuration, setExamDuration] = useState(0);
   const [countdown, setCountdown] = useState(0);
 
-  const [cookies] = useCookies(["access_token", "user_ID"]);
+  const [cookies] = useCookies(["access_token", "user_ID", "user_name"]);
 
   const studentID = cookies.user_ID;
+  const username = cookies.user_name;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -123,6 +124,7 @@ export const StudentExam = () => {
         questions: answers,
         grade: studentGrade,
         passed: pass,
+        username,
       };
 
       const startTimeMs = new Date(patchData.startTime).getTime();
