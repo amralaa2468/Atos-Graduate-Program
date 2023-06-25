@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import { validationResult } from "express-validator";
 import util from "util";
 
+import createKafkaConfig from "../configuration/config.js";
 import HttpError from "../models/http-error.js";
 import pool from "../../database.js";
 import examsQueries from "../queries/exams-queries.js";
@@ -97,13 +98,51 @@ async function getAssignedToFromExamDefinition(examDefinitionID) {
       [examDefinitionID]
     );
 
-    return results.rows[0].assignedto;
+    //console.log(results.rows[0]);
+    return results.rows[0];
   } catch (error) {
     console.error(error);
     throw new HttpError(
       "Something went wrong, cannot get assigned to from exams definition",
       402
     );
+  }
+}
+//----------------------------------------------------------------------------
+async function sendExamCreatedNotification(generatedLink) {
+  try {
+    const {
+      url,
+      token,
+      scheduledTimeTo,
+      scheduledTimeFrom,
+      notification,
+      examName,
+      assignedUser,
+    } = generatedLink;
+
+    const kafkaConfig = createKafkaConfig();
+
+    const message = {
+      url,
+      token,
+      scheduledTimeTo,
+      scheduledTimeFrom,
+      notification,
+      examName,
+      assignedUser,
+    };
+
+    const messages = [{ value: JSON.stringify(message) }];
+    kafkaConfig.produce("first_kafka_topic", messages);
+
+    console.log("Message send successfully");
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      status: "Error",
+      message: "An error occurred while sending the message",
+    });
   }
 }
 //----------------------------------------------------------------------------
@@ -124,23 +163,60 @@ async function createExamInstance(req, res, next) {
 
   const { examDefinitionID, duration, createdBy, generatedLink } = req.body;
 
-  const assignedTo = await getAssignedToFromExamDefinition(examDefinitionID);
+  const examDefinitionData = await getAssignedToFromExamDefinition(
+    examDefinitionID
+  );
 
-  assignedTo.forEach((assignedUser) => {
-    pool.query(
-      examsQueries.createExamInstance,
-      [examDefinitionID, duration, createdBy, generatedLink, assignedUser],
-      (error, results) => {
-        if (error) {
-          console.log(error);
-          const err = new HttpError(
-            "Something went wrong, cannot create exam instance.",
-            402
-          );
-          return next(err);
+  const assignedTo = examDefinitionData.assignedto;
+  const examName = examDefinitionData.name;
+
+  assignedTo.forEach(async (assignedUser) => {
+    // Extract properties from the generatedLink object
+    const { url, token, scheduledTimeTo, scheduledTimeFrom, notification } =
+      generatedLink;
+
+    // Add assignedUser and examName to the extracted properties
+    const modifiedGeneratedLink = {
+      url,
+      token,
+      scheduledTimeTo,
+      scheduledTimeFrom,
+      notification,
+      assignedUser,
+      examName,
+    };
+
+    try {
+      await sendExamCreatedNotification(modifiedGeneratedLink);
+
+      pool.query(
+        examsQueries.createExamInstance,
+        [
+          examDefinitionID,
+          duration,
+          createdBy,
+          modifiedGeneratedLink,
+          assignedUser,
+        ],
+        (error, results) => {
+          if (error) {
+            console.log(error);
+            const err = new HttpError(
+              "Something went wrong, cannot create exam instance.",
+              402
+            );
+            return next(err);
+          }
         }
-      }
-    );
+      );
+    } catch (error) {
+      console.log(error);
+      const err = new HttpError(
+        "Something went wrong, cannot create exam instance.",
+        402
+      );
+      return next(err);
+    }
   });
 
   res.status(201).send("Exam instances created successfully.");
@@ -169,10 +245,113 @@ function getStudentExams(req, res, next) {
   );
 }
 //----------------------------------------------------------------------------
+async function sendExamCorrectedNotification(examInstanceID) {
+  const queryAsync = util.promisify(pool.query).bind(pool);
+  let results;
+  let grade;
+  let passed;
+  let examName;
+  let assignedUser;
+
+  try {
+    results = await queryAsync(examsQueries.getExamCorrectedNotificationInfo, [
+      examInstanceID,
+    ]);
+
+    examName = results.rows[0].generatedlink.examName;
+    grade = results.rows[0].grade;
+    passed = results.rows[0].passed;
+    assignedUser = results.rows[0].assignedto;
+    console.log(examName + " " + grade + " " + passed + " " + assignedUser);
+  } catch (error) {
+    console.error(error);
+    throw new HttpError(
+      "Something went wrong, cannot get username from exams instance",
+      402
+    );
+  }
+  try {
+    const kafkaConfig = createKafkaConfig();
+
+    const message = {
+      grade,
+      passed,
+      assignedUser,
+      examName,
+      notification: "Exam corrected.",
+    };
+
+    const messages = [{ value: JSON.stringify(message) }];
+    kafkaConfig.produce("first_kafka_topic", messages);
+
+    console.log("Message send successfully");
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      status: "Error",
+      message: "An error occurred while sending the message",
+    });
+  }
+}
+
+//----------------------------------------------------------------------------
+async function sendExamSubmittedNotification(examInstanceID) {
+  const queryAsync = util.promisify(pool.query).bind(pool);
+  let results;
+  let username;
+  let assignedUser;
+  let examName;
+
+  try {
+    results = await queryAsync(examsQueries.getExamSubmittedNotificationInfo, [
+      examInstanceID,
+    ]);
+
+    examName = results.rows[0].generatedlink.examName;
+    username = results.rows[0].username;
+    assignedUser = results.rows[0].createdby;
+  } catch (error) {
+    console.error(error);
+    throw new HttpError(
+      "Something went wrong, cannot get username from exams instance",
+      402
+    );
+  }
+  try {
+    const kafkaConfig = createKafkaConfig();
+
+    const message = {
+      username,
+      assignedUser,
+      examName,
+      notification: "Exam submitted.",
+    };
+
+    const messages = [{ value: JSON.stringify(message) }];
+    kafkaConfig.produce("first_kafka_topic", messages);
+
+    console.log("Message send successfully");
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      status: "Error",
+      message: "An error occurred while sending the message",
+    });
+  }
+}
+//--------------------------------------------------------------------------
 function submitExam(req, res, next) {
   const examInstanceID = req.params.examInstanceID;
-  const { startTime, endTime, takenBy, status, questions, grade, passed } =
-    req.body;
+  const {
+    startTime,
+    endTime,
+    takenBy,
+    status,
+    questions,
+    grade,
+    passed,
+    username,
+  } = req.body;
 
   pool.query(
     examsQueries.submitExam,
@@ -185,17 +364,19 @@ function submitExam(req, res, next) {
       examInstanceID,
       grade,
       passed,
+      username,
     ],
     (error, results) => {
       if (error) {
         console.log(error);
         const err = new HttpError(
-          "Something went wrong, cannot submit examd.",
+          "Something went wrong, cannot submit exam.",
           402
         );
         return next(err);
       }
-
+      sendExamSubmittedNotification(examInstanceID);
+      sendExamCorrectedNotification(examInstanceID);
       res.json("Exam submitted successfully.");
     }
   );
